@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctfd-redis
+  labels:
+    app: ctfd
+spec:
+  ports:
+    - port: 6379
+  selector:
+    app: ctfd
+    tier: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctfd-redis
+  labels:
+    app: ctfd
+spec:
+  selector:
+    matchLabels:
+      app: ctfd
+      tier: redis
+  template:
+    metadata:
+      labels:
+        app: ctfd
+        tier: redis
+    spec:
+      containers:
+        - image: bitnami/redis:6.0
+          name: redis
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ctfd-redis-credentials
+                  key: password
+          ports:
+            - containerPort: 6379
+              name: redis

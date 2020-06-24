@@ -1,0 +1,47 @@
+stages:
+  - validate
+  - build
+  - deploy
+
+variables:
+  IMAGE_PREFIX: "${CI_REGISTRY_IMAGE}/"
+  IMAGE_TAG: "${CI_COMMIT_REF_NAME}"
+
+validate:
+  image: python:3.8-alpine
+  stage: validate
+  before_script:
+    - pip install colorama requests pyyaml
+  script:
+    - ./ctftool.py validate
+
+build_images:
+  image: docker:stable
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - ./deploy/docker/build.sh
+    - ./deploy/docker/push.sh
+
+deploy:
+  image: docker:latest
+  stage: deploy
+  environment:
+    name: production
+  before_script:
+    - apk add --no-cache curl bash gettext python3 py3-pip
+    - pip3 install pyyaml
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    - mkdir ~/.kube
+    - cp $KUBECONFIG ~/.kube/config
+  script:
+    - ./deploy/kube/generate.sh
+    - kubectl apply -k deploy/kube/
+  only:
+    - master

@@ -1,0 +1,111 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ctfd-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  rules:
+    - host: $DOMAIN
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: ctfd-deployment
+              servicePort: 8000
+  tls:
+    - hosts:
+        - $DOMAIN
+      secretName: letsencrypt-prod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctfd-deployment
+  labels:
+    app: ctfd
+spec:
+  ports:
+    - port: 8000
+      protocol: TCP
+  selector:
+    app: ctfd
+    tier: frontend
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ctfd-data-pv-claim
+  labels:
+    app: ctfd
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctfd-deployment
+  labels:
+    app: ctfd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctfd
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ctfd
+        tier: frontend
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: ctfd
+          image: ctfd/ctfd:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ctfd-secrets
+                  key: secret
+            - name: UPLOAD_FOLDER
+              value: /var/uploads/
+            - name: LOG_FOLDER
+              value: /var/log/CTFd/
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ctfd-mysql-credentials
+                  key: url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ctfd-redis-credentials
+                  key: url
+            - name: WORKERS
+              value: "1"
+            - name: REVERSE_PROXY
+              value: "true"
+          volumeMounts:
+            - mountPath: /var/uploads/
+              name: ctfd-data
+              subPath: uploads/
+            - mountPath: /var/log/CTFd/
+              name: ctfd-data
+              subPath: logs/
+      volumes:
+        - name: ctfd-data
+          persistentVolumeClaim:
+            claimName: ctfd-data-pv-claim
