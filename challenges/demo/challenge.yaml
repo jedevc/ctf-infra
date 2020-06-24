@@ -1,0 +1,13 @@
+name: demo
+category: demo
+description: >
+  There's a flag on the webserver.
+flags:
+  - FLAG{demo}
+files:
+  - app.py
+points: 10
+deploy:
+  docker: yes
+  internalPort: 8000
+  externalPort: 30400

@@ -2,4 +2,4 @@
 
 BASE=$(dirname $0)
 
-$BASE/challenges.py > $BASE/docker-compose.yaml
+$BASE/docker-compose.py > $BASE/docker-compose.yaml

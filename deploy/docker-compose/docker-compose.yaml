@@ -1,0 +1,8 @@
+services:
+  challenge-demo:
+    build: challenges/demo
+    image: challenge-demo
+    ports:
+    - 30400:8000
+    restart: always
+version: '3'

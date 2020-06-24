@@ -37,7 +37,7 @@ def generate_service(challenge):
     return {
         f"challenge-{challenge.name}": {
             "image": f"challenge-{challenge.name}",
-            "build": challenge.path,
+            "build": os.path.dirname(challenge.path),
             "restart": "always",
             "ports": ports,
         }
