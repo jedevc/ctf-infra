@@ -10,4 +10,4 @@ points: 10
 deploy:
   docker: yes
   internalPort: 8000
-  externalPort: 30400
+  externalPort: 4000

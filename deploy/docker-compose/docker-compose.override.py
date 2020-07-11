@@ -2,25 +2,27 @@
 
 import os
 import site
-import sys
 import yaml
 
-site.addsitedir(".")
+site.addsitedir(os.getcwd())
 import ctftool
 
 
 def main():
+    local = os.path.dirname(os.path.realpath(__file__))
+
     services = {}
     for challenge in ctftool.Challenge.load_all():
         service = generate_service(challenge)
         if service:
             services = {**service, **services}
 
-    compose = {
-        "version": "3",
-        "services": services,
-    }
-    yaml.dump(compose, sys.stdout)
+    with open(os.path.join(local, "docker-compose.override.yaml"), "w") as f:
+        compose = {
+            "version": "3",
+            "services": services,
+        }
+        yaml.dump(compose, f)
 
 
 def generate_service(challenge):
@@ -37,7 +39,6 @@ def generate_service(challenge):
     return {
         f"challenge-{challenge.name}": {
             "image": f"challenge-{challenge.name}",
-            "build": os.path.dirname(challenge.path),
             "restart": "always",
             "ports": ports,
         }

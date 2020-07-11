@@ -71,7 +71,7 @@ spec:
         fsGroup: 1001
       containers:
         - name: ctfd
-          image: ctfd/ctfd:latest
+          image: ctfd/ctfd:2.5.0-dev
           ports:
             - containerPort: 8000
           env:

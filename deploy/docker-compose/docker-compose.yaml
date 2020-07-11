@@ -1,8 +1,60 @@
+version: "3"
+
 services:
-  challenge-demo:
-    build: challenges/demo
-    image: challenge-demo
-    ports:
-    - 30400:8000
+  ctfd:
+    image: ctfd/ctfd:2.5.0-dev
+    user: root
     restart: always
-version: '3'
+    ports:
+      - "8000:8000"
+    environment:
+      - UPLOAD_FOLDER=/var/uploads
+      - DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
+      - REDIS_URL=redis://cache:6379
+      - WORKERS=1
+      - LOG_FOLDER=/var/log/CTFd
+      - ACCESS_LOG=-
+      - ERROR_LOG=-
+      - REVERSE_PROXY=true
+    volumes:
+      - .data/CTFd/logs:/var/log/CTFd
+      - .data/CTFd/uploads:/var/uploads
+    depends_on:
+      - db
+    networks:
+      default:
+      internal:
+
+  nginx:
+    image: nginx:1.17
+    volumes:
+      - ./conf/http.conf:/etc/nginx/nginx.conf
+    ports:
+      - 80:80
+    depends_on:
+      - ctfd
+
+  db:
+    image: mariadb:10.4.12
+    restart: always
+    command: [mysqld, --wait_timeout=28800]
+    environment:
+      - MYSQL_ROOT_PASSWORD=ctfd
+      - MYSQL_USER=ctfd
+      - MYSQL_PASSWORD=ctfd
+      - MYSQL_DATABASE=ctfd
+    volumes:
+      - .data/mysql:/var/lib/mysql
+    networks:
+      internal:
+
+  cache:
+    image: redis:4
+    restart: always
+    networks:
+      internal:
+
+networks:
+  default:
+  internal:
+    internal: true

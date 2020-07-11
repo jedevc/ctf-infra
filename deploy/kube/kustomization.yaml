@@ -1,24 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-resources:
-  - mysql.yaml
-  - redis.yaml
-  - ctfd.yaml
-  - challenges.yaml
-
-secretGenerator:
-  - name: ctfd-mysql-credentials
-    literals:
-      - database=$CTFD_MYSQL_DB
-      - username=$CTFD_MYSQL_USER
-      - password=$CTFD_MYSQL_PASSWORD
-      - url=mysql+pymysql://${CTFD_MYSQL_USER}:${CTFD_MYSQL_PASSWORD}@ctfd-mysql/${CTFD_MYSQL_DB}
-  - name: ctfd-redis-credentials
-    literals:
-      - password=$CTFD_REDIS_PASSWORD
-      - url=redis://redis:${CTFD_REDIS_PASSWORD}@ctfd-redis
-  - name: ctfd-secrets
-    literals:
-      - secret=$CTFD_SECRET
-
+bases:
+  - challenges
+  - ctfd
