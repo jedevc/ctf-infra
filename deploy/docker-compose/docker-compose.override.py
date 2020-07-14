@@ -30,11 +30,8 @@ def generate_service(challenge):
         return None
 
     ports = []
-    if (internalPort := challenge.deploy.internalPort) :
-        if (externalPort := challenge.deploy.externalPort) :
-            ports.append(f"{externalPort}:{internalPort}")
-        else:
-            ports.append(f"{internalPort}")
+    for port in challenge.deploy.ports:
+        ports.append(f"{port.external}:{port.internal}/{port.protocol}")
 
     return {
         f"challenge-{challenge.name}": {

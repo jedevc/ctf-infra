@@ -31,35 +31,36 @@ def main():
         if kustomization:
             yaml.dump(kustomization, f)
 
+
 def generate_kustomization(challenges):
     ports = []
     resources = []
     for challenge in challenges:
-        if (internal := challenge.deploy.internalPort) and (external := challenge.deploy.externalPort):
-            ports.append(f"{external}=default/challenge-{challenge.name}-service:{internal}")
-            resources.append(challenge.name + ".yaml")
+        resources.append(challenge.name + ".yaml")
+
+        for port in challenge.deploy.ports:
+            ports.append(
+                f"{port.external}=default/challenge-{challenge.name}-service:{port.internal}"
+            )
 
     return {
         "apiVersion": "kustomize.config.k8s.io/v1beta1",
         "kind": "Kustomization",
-        "configMapGenerator": [{
-            "namespace": "ingress",
-            "name": "tcp-services",
-            "literals": ports,
-        }],
-        "generatorOptions": {
-            "disableNameSuffixHash": True,
-        },
+        "configMapGenerator": [
+            {"namespace": "ingress", "name": "tcp-services", "literals": ports}
+        ],
+        "generatorOptions": {"disableNameSuffixHash": True,},
         "resources": resources,
     }
+
 
 def generate_deployment(challenge):
     if not challenge.deploy.docker:
         return None
 
     ports = []
-    if (port := challenge.deploy.internalPort) :
-        ports.append({"containerPort": port})
+    for port in challenge.deploy.ports:
+        ports.append({"containerPort": port.internal})
 
     IMAGE_PREFIX = os.environ.get("IMAGE_PREFIX", "")
     IMAGE_TAG = os.environ.get("IMAGE_TAG", "latest")
@@ -100,9 +101,14 @@ def generate_service(challenge):
         return None
 
     ports = []
-    if (internal := challenge.deploy.internalPort) and (external := challenge.deploy.externalPort):
-        port = {"port": external, "targetPort": internal, "protocol": "TCP"}
-        ports.append(port)
+    for port in challenge.deploy.ports:
+        ports.append(
+            {
+                "port": port.external,
+                "targetPort": port.internal,
+                "protocol": port.protocol.upper(),
+            }
+        )
 
     return {
         "apiVersion": "v1",
@@ -111,21 +117,9 @@ def generate_service(challenge):
             "name": f"challenge-{challenge.name}-service",
             "labels": {"challenge": challenge.name},
         },
-        "spec": {
-            "selector": {"challenge": challenge.name},
-            "ports": ports,
-        },
+        "spec": {"ports": ports, "selector": {"challenge": challenge.name}},
     }
 
-def generate_ports(challenge):
-    if not challenge.deploy.docker:
-        return None
-
-    ports = []
-    if (external := challenge.deploy.externalPort):
-        ports.append(f"{external}=default/challenge-{challenge.name}-service:{external}")
-
-    return ports
 
 if __name__ == "__main__":
     main()

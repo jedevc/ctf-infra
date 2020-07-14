@@ -9,5 +9,6 @@ files:
 points: 10
 deploy:
   docker: yes
-  internalPort: 8000
-  externalPort: 4000
+  ports:
+    - internal: 8000
+      external: 4000
