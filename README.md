@@ -33,7 +33,7 @@ intended to be used in conjunction with either docker-compose or kubernetes.
 Set optional environment variables:
 
     $ export IMAGE_TAG=...
-    $ export IMAGE_PREFIX=example/
+    $ export IMAGE_REPO=...
 
 Build the challenge images:
 
@@ -46,7 +46,7 @@ Push them to a private registry:
 The next steps assume that you have configured your machines to automatically
 pull from this private registry.
 
-If you don't happen to have a private registry, just leave `IMAGE_PREFIX`
+If you don't happen to have a private registry, just leave `IMAGE_REPO`
 unset and everything should be fine.
 
 ### Docker Compose

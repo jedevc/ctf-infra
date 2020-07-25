@@ -4,8 +4,8 @@ stages:
   - deploy
 
 variables:
-  IMAGE_PREFIX: "${CI_REGISTRY_IMAGE}/"
-  IMAGE_TAG: "${CI_COMMIT_REF_NAME}"
+  IMAGE_REPO: $CI_REGISTRY_IMAGE
+  IMAGE_TAG: $CI_COMMIT_REF_NAME
 
 validate:
   image: python:3.8-alpine

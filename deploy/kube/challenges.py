@@ -62,7 +62,7 @@ def generate_deployment(challenge):
     for port in challenge.deploy.ports:
         ports.append({"containerPort": port.internal})
 
-    IMAGE_PREFIX = os.environ.get("IMAGE_PREFIX", "")
+    IMAGE_REPO = os.environ.get("IMAGE_REPO", "")
     IMAGE_TAG = os.environ.get("IMAGE_TAG", "latest")
 
     return {
@@ -85,7 +85,7 @@ def generate_deployment(challenge):
                     "containers": [
                         {
                             "name": f"challenge-{challenge.name}",
-                            "image": f"{IMAGE_PREFIX}challenge-{challenge.name}:{IMAGE_TAG}",
+                            "image": f"{IMAGE_REPO}/challenge-{challenge.name}:{IMAGE_TAG}",
                             "imagePullPolicy": "Always",
                             "ports": ports,
                         },
