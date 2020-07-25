@@ -49,7 +49,7 @@ def main():
     args = parser.parse_args()
     if hasattr(args, "func"):
         success = args.func(args)
-        if not success:
+        if success is not None and not success:
             sys.exit(1)
     else:
         parser.print_help()
@@ -93,7 +93,7 @@ def validate_challenges(args):
         failed = False
 
         def fail(message):
-            nonlocal failed
+            nonlocal failed, success
             failed = True
             success = False
             print(f"\n{Fore.RED}✗{Style.RESET_ALL} {message}", end="")
