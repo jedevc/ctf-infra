@@ -15,7 +15,7 @@ for source in challenges/**/challenge.yaml; do
     if [ -n "$IMAGE_PREFIX" ]; then
         docker pull "$IMAGE_NAME:$IMAGE_TAG" || true
     fi
-    docker build --cache-from "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME" .
+    docker build --cache-from "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME:$IMAGE_TAG" .
 
     cd $ROOT
 done
