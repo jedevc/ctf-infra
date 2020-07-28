@@ -1,17 +1,21 @@
 #!/bin/bash
 
 set -e
-shopt -s globstar
 
 ROOT=$PWD
+SOURCE=$(dirname $0)
 
-for source in challenges/**/challenge.yaml; do
+for source in $($SOURCE/deployable.py); do
     cd $(dirname $source)
 
     if [ -z "$IMAGE_TAG" ]; then
         IMAGE_TAG="latest"
     fi
-    IMAGE_NAME="${IMAGE_REPO}/challenge-$(basename $(dirname $source))"
+
+    IMAGE_NAME="challenge-$(basename $(dirname $source))"
+    if [ -n "$IMAGE_REPO" ]; then
+        IMAGE_NAME="$IMAGE_REPO/$IMAGE_NAME"
+    fi
 
     if [ -n "$IMAGE_REPO" ]; then
         docker pull "$IMAGE_NAME:$IMAGE_TAG" || true

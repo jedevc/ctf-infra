@@ -1,0 +1,7 @@
+services:
+  challenge-demo:
+    image: challenge-demo
+    ports:
+    - 4000:8000/tcp
+    restart: always
+version: '3'
