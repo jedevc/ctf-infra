@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -e
 shopt -s globstar
 
 ROOT=$PWD
