@@ -27,8 +27,8 @@ def main():
     )
     list_parser.set_defaults(func=list_challenges)
 
-    refresh_parser = subparsers.add_parser("validate", help="validate all config files")
-    refresh_parser.set_defaults(func=validate_challenges)
+    validate_parser = subparsers.add_parser("validate", help="validate all config files")
+    validate_parser.set_defaults(func=validate_challenges)
 
     upload_parser = subparsers.add_parser("upload", help="upload all challenges")
     upload_parser.add_argument("url", help="base url of the CTFd instance")
