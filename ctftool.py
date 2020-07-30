@@ -7,6 +7,7 @@ import os
 import sys
 import re
 import traceback
+import subprocess
 from typing import Any, Dict, Iterable, List, Optional
 
 import colorama
@@ -29,6 +30,12 @@ def main():
 
     validate_parser = subparsers.add_parser("validate", help="validate all config files")
     validate_parser.set_defaults(func=validate_challenges)
+
+    generate_parser = subparsers.add_parser("generate", help="generate challenge files")
+    generate_parser.set_defaults(func=generate_files)
+
+    clean_parser = subparsers.add_parser("clean", help="clean generated challenge files")
+    clean_parser.set_defaults(func=clean_files)
 
     upload_parser = subparsers.add_parser("upload", help="upload all challenges")
     upload_parser.add_argument("url", help="base url of the CTFd instance")
@@ -118,6 +125,10 @@ def validate_challenges(args):
                 fail(f"challenge category does not match regex \"{NAME_REGEX}\"")
 
             for filename in challenge.files:
+                if filename in challenge.generate:
+                    # generated files may not exist at time of validation
+                    continue
+
                 filename_relative = os.path.join(
                     os.path.dirname(challenge.path), filename
                 )
@@ -133,6 +144,32 @@ def validate_challenges(args):
             print(f" {Fore.GREEN}✔{Style.RESET_ALL}")
 
     return success
+
+def generate_files(args):
+    for challenge in Challenge.load_all(False):
+        for filename, command in challenge.generate.items():
+            cwd = os.path.dirname(challenge.path)
+
+            try:
+                subprocess.run(command, shell=True, check=True, cwd=cwd)
+            except subprocess.CalledProcessError:
+                print(f"failed to generate {filename} {Fore.RED}✗{Style.RESET_ALL}")
+                raise
+
+            if not os.path.exists(os.path.join(cwd, filename)):
+                print(f"did not generate {filename} {Fore.RED}✗{Style.RESET_ALL}")
+            else:
+                print(f"generated {filename} {Fore.GREEN}✔{Style.RESET_ALL}")
+
+
+def clean_files(args):
+    for challenge in Challenge.load_all(False):
+        for filename in challenge.generate.keys():
+            cwd = os.path.dirname(challenge.path)
+            try:
+                os.remove(os.path.join(cwd, filename))
+            except FileNotFoundError:
+                pass
 
 
 def upload_challenges(args):
@@ -203,6 +240,7 @@ class Challenge:
         points: int = 0,
         flags: List[str] = None,
         files: List[str] = None,
+        generate: Dict[str, str] = None,
         requirements: List[str] = None,
         deploy: "Deploy" = None,
     ):
@@ -213,6 +251,7 @@ class Challenge:
         self.points = points
         self.flags = flags or []
         self.files = files or []
+        self.generate = generate or {}
         self.requirements = requirements or []
         self.deploy = deploy
 
@@ -263,6 +302,7 @@ class Challenge:
             points=data.get("points", 0),
             flags=data.get("flags", []),
             files=data.get("files", []),
+            generate=data.get("generate", {}),
             requirements=data.get("requirements", []),
             deploy=Deploy._load_dict(data.get("deploy", {})),
         )
@@ -457,10 +497,17 @@ class CTFd:
 
 if __name__ == "__main__":
     # run with colorama
+    error = False
     colorama.init(autoreset=True)
     try:
         main()
     except Exception:
         traceback.print_exc()
+        error = True
     finally:
         colorama.deinit()
+
+    if error:
+        sys.exit(1)
+    else:
+        sys.exit(0)
