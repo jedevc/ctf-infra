@@ -28,22 +28,23 @@ def main():
     )
     list_parser.set_defaults(func=list_challenges)
 
-    validate_parser = subparsers.add_parser("validate", help="validate all config files")
+    validate_parser = subparsers.add_parser(
+        "validate", help="validate all config files"
+    )
     validate_parser.set_defaults(func=validate_challenges)
 
     generate_parser = subparsers.add_parser("generate", help="generate challenge files")
     generate_parser.set_defaults(func=generate_files)
 
-    clean_parser = subparsers.add_parser("clean", help="clean generated challenge files")
+    clean_parser = subparsers.add_parser(
+        "clean", help="clean generated challenge files"
+    )
     clean_parser.set_defaults(func=clean_files)
 
     upload_parser = subparsers.add_parser("upload", help="upload all challenges")
     upload_parser.add_argument("url", help="base url of the CTFd instance")
     upload_parser.add_argument(
-        "--username", "-u", required=True, help="username for the admin user"
-    )
-    upload_parser.add_argument(
-        "--password", "-p", required=True, help="password for the admin user"
+        "--token", "-t", required=True, help="token for the admin user"
     )
     upload_parser.add_argument(
         "--insecure", "-k", action="store_true", help="do not check ssl certificates"
@@ -55,11 +56,11 @@ def main():
 
     args = parser.parse_args()
     if hasattr(args, "func"):
-        success = args.func(args)
-        if success is not None and not success:
-            sys.exit(1)
+        return args.func(args)
     else:
         parser.print_help()
+
+    return True
 
 
 def list_challenges(args):
@@ -113,7 +114,7 @@ def validate_challenges(args):
             if not challenge.name:
                 fail("challenge name must not be empty")
             elif not re.match(NAME_REGEX, challenge.name):
-                fail(f"challenge name does not match regex \"{NAME_REGEX}\"")
+                fail(f'challenge name does not match regex "{NAME_REGEX}"')
             elif challenge.name in existing_challenges:
                 fail("challenge name must not be a duplicate")
             else:
@@ -122,7 +123,7 @@ def validate_challenges(args):
             if not challenge.category:
                 fail("challenge category must not be empty")
             elif not re.match(NAME_REGEX, challenge.category):
-                fail(f"challenge category does not match regex \"{NAME_REGEX}\"")
+                fail(f'challenge category does not match regex "{NAME_REGEX}"')
 
             for filename in challenge.files:
                 if filename in challenge.generate:
@@ -135,6 +136,14 @@ def validate_challenges(args):
                 if not os.path.exists(filename_relative):
                     fail(f'challenge file "{filename}" does not exist')
 
+            for hint in challenge.hints:
+                if not isinstance(hint, dict):
+                    fail("hint is not a map")
+                elif "text" not in hint:
+                    fail("hint does not have text")
+                elif "cost" not in hint:
+                    fail("hint does not have a cost")
+
             if len(challenge.flags) == 0:
                 fail("challenge must have at least 1 flag")
 
@@ -144,6 +153,7 @@ def validate_challenges(args):
             print(f" {Fore.GREEN}✔{Style.RESET_ALL}")
 
     return success
+
 
 def generate_files(args):
     for challenge in Challenge.load_all(False):
@@ -173,7 +183,7 @@ def clean_files(args):
 
 
 def upload_challenges(args):
-    ctfd = CTFd(args.url, args.username, args.password, verify=(not args.insecure))
+    ctfd = CTFd(args.url, args.token, verify=(not args.insecure))
     success = True
     skipped = False
 
@@ -240,6 +250,7 @@ class Challenge:
         points: int = 0,
         flags: List[str] = None,
         files: List[str] = None,
+        hints: List[Dict[str, Any]] = None,
         generate: Dict[str, str] = None,
         requirements: List[str] = None,
         deploy: "Deploy" = None,
@@ -251,6 +262,7 @@ class Challenge:
         self.points = points
         self.flags = flags or []
         self.files = files or []
+        self.hints = hints or []
         self.generate = generate or {}
         self.requirements = requirements or []
         self.deploy = deploy
@@ -302,6 +314,7 @@ class Challenge:
             points=data.get("points", 0),
             flags=data.get("flags", []),
             files=data.get("files", []),
+            hints=data.get("hints", []),
             generate=data.get("generate", {}),
             requirements=data.get("requirements", []),
             deploy=Deploy._load_dict(data.get("deploy", {})),
@@ -350,37 +363,26 @@ class CTFd:
     """
     Client for CTFd server.
 
-    This was originally tested with CTFd 2.5.0 on API v1 and should continue
+    This has been tested with CTFd 3.0.0 on API v1 and should continue
     to work in the future, as long as the API doesn't change too much.
-
-    Note that this is quite hacky - it is near impossible to find any
-    documentation on the CTFd api.
     """
 
     NONCE_EXPRESSION = re.compile(
         "'?csrf_?nonce'?\s*[:=]\s*['\"]([a-zA-Z0-9]*)['\"]", re.IGNORECASE
     )
 
-    def __init__(self, url: str, username: str, password: str, verify: bool = True):
+    def __init__(self, url: str, token: str, verify: bool = True):
         self.base = url
         self.verify = verify
         self.session = requests.Session()
 
-        self._extract_nonce()
-
-        self.username = username
-        self.password = password
-        self._login()
-
-        self._extract_nonce()
+        self.session.headers.update(
+            {"Authorization": f"Token {token}",}
+        )
 
     def list(self) -> List[Challenge]:
-        headers = {"CSRF-Token": self.nonce}
-
         resp = self.session.get(
-            self.base + "/api/v1/challenges?view=admin",
-            headers=headers,
-            verify=self.verify,
+            self.base + "/api/v1/challenges?view=admin", verify=self.verify, json={},
         )
         resp_data = resp.json()
         if "success" in resp_data and resp_data["success"]:
@@ -389,8 +391,6 @@ class CTFd:
             return []
 
     def upload(self, challenge: Challenge) -> int:
-        headers = {"CSRF-Token": self.nonce}
-
         # create challenge
         data = {
             "name": challenge.name,
@@ -401,10 +401,7 @@ class CTFd:
             "description": challenge.description,
         }
         resp = self.session.post(
-            self.base + "/api/v1/challenges",
-            headers=headers,
-            json=data,
-            verify=self.verify,
+            self.base + "/api/v1/challenges", json=data, verify=self.verify,
         )
         resp_data = resp.json()
         if "success" not in resp_data or not resp_data["success"]:
@@ -423,21 +420,36 @@ class CTFd:
                 data = {"challenge": challenge_id, "content": flag, "type": "static"}
 
             resp = self.session.post(
-                self.base + "/api/v1/flags",
-                headers=headers,
-                json=data,
-                verify=self.verify,
+                self.base + "/api/v1/flags", json=data, verify=self.verify,
             )
             resp_data = resp.json()
             if "success" not in resp_data or not resp_data["success"]:
                 raise RuntimeError("could not add flag to challenge")
+
+        # add challenge hints
+        for hint in challenge.hints:
+            if not isinstance(hint, dict):
+                continue
+            if "text" not in hint or "cost" not in hint:
+                continue
+
+            data = {
+                "content": hint["text"],
+                "cost": hint["cost"],
+                "challenge": challenge_id,
+            }
+            resp = self.session.post(
+                self.base + "/api/v1/hints", json=data, verify=self.verify,
+            )
+            resp_data = resp.json()
+            if "success" not in resp_data or not resp_data["success"]:
+                raise RuntimeError("could not add hint to challenge")
 
         # upload challenge files
         if challenge.path:
             for filename in challenge.files:
                 fullfilename = os.path.join(os.path.dirname(challenge.path), filename)
                 data = {
-                    "nonce": self.nonce,
                     "challenge": challenge_id,
                     "type": "challenge",
                 }
@@ -458,8 +470,6 @@ class CTFd:
     def requirements(
         self, challenge_id: int, challenge: Challenge, online: List[Dict[str, Any]]
     ):
-        headers = {"CSRF-Token": self.nonce}
-
         # determine the requirement ids
         requirement_ids = []
         for req in challenge.requirements:
@@ -475,39 +485,23 @@ class CTFd:
             data = {"requirements": {"prerequisites": requirement_ids}}
             resp = self.session.patch(
                 self.base + f"/api/v1/challenges/{challenge_id}",
-                headers=headers,
                 json=data,
                 verify=self.verify,
             )
 
-    def _extract_nonce(self):
-        resp = self.session.get(self.base, verify=self.verify)
-        matches = CTFd.NONCE_EXPRESSION.search(resp.content.decode())
-        if matches:
-            self.nonce = matches.group(1)
-        else:
-            raise RuntimeError("could not extract nonce")
-
-    def _login(self):
-        data = {"name": self.username, "password": self.password, "nonce": self.nonce}
-        resp = self.session.post(self.base + "/login", verify=self.verify, data=data)
-        if "username or password is incorrect" in resp.text:
-            raise RuntimeError("could not login, invalid credentials")
-
 
 if __name__ == "__main__":
     # run with colorama
-    error = False
     colorama.init(autoreset=True)
     try:
-        main()
+        success = main()
     except Exception:
         traceback.print_exc()
-        error = True
+        success = False
     finally:
         colorama.deinit()
 
-    if error:
-        sys.exit(1)
-    else:
+    if success is None or success:
         sys.exit(0)
+    else:
+        sys.exit(1)
