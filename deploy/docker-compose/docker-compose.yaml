@@ -2,7 +2,7 @@ version: "3"
 
 services:
   ctfd:
-    image: ctfd/ctfd:2.5.0-dev
+    image: ctfd/ctfd:latest
     user: root
     restart: always
     ports:
