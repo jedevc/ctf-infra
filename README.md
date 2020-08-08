@@ -79,14 +79,14 @@ Launch it!
 To deploy using Kubernetes, you first need a cluster. Then, once you've
 installed the dependencies (listed below), you can install the entire infra.
 
-Export required environment variables:
+Export required environment variables (see `.env.sample` for more info):
 
+    $ export DOMAIN=ctfd.example.com
     $ export CTFD_MYSQL_DB=ctfd
     $ export CTFD_MYSQL_USER=ctfd
-    $ export CTFD_MYSQL_PASSWORD=ctfd
-    $ export CTFD_REDIS_PASSWORD=ctfd
+    $ export CTFD_MYSQL_PASSWORD=password
+    $ export CTFD_REDIS_PASSWORD=password
     $ export CTFD_SECRET=ctfd
-    $ export DOMAIN=ctfd.example.com
 
 Copy the infrastructure code to a build directory:
 
