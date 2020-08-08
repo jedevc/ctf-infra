@@ -46,9 +46,6 @@ def main():
     upload_parser.add_argument(
         "--token", "-t", required=True, help="token for the admin user"
     )
-    upload_parser.add_argument(
-        "--insecure", "-k", action="store_true", help="do not check ssl certificates"
-    )
     upload_parser.set_defaults(func=upload_challenges)
 
     upgrade_parser = subparsers.add_parser("upgrade", help="upgrade ctftool")
@@ -183,45 +180,34 @@ def clean_files(args):
 
 
 def upload_challenges(args):
-    ctfd = CTFd(args.url, args.token, verify=(not args.insecure))
+    ctfd = CTFd(args.url, args.token)
     success = True
-    skipped = False
 
-    online_names = [challenge["name"] for challenge in ctfd.list()]
-    challenge_data = []
+    online = {data["name"]: data for data in ctfd.list()}
+    challenge_data = {}
 
     # upload challenges
     for challenge in Challenge.load_all():
         print(challenge.path, end="")
-        if challenge.name in online_names:
-            skipped = True
-            print(f"{Fore.YELLOW} ~")
-            continue
-
         try:
-            cid = ctfd.upload(challenge)
-            online_names.append(challenge.name)
-            challenge_data.append((cid, challenge))
-            print(f"{Fore.GREEN} ✓")
+            if challenge.name in online:
+                cid = ctfd.reupload(online[challenge.name]["id"], challenge)
+                print(f"{Fore.YELLOW} ~")
+            else:
+                cid = ctfd.upload(challenge)
+                print(f"{Fore.GREEN} ✓")
         except Exception as e:
             success = False
             print(f"{Fore.RED} ✗ {e}")
+            continue
+
+        challenge_data[challenge.name] = challenge
+        online = {data["name"]: data for data in ctfd.list()}
 
     # apply requirements
-    online = ctfd.list()
-    for cid, challenge in challenge_data:
-        ctfd.requirements(cid, challenge, online)
-
-    if skipped:
-        print()
-        print(
-            Fore.LIGHTBLACK_EX
-            + "Some challenges have not been uploaded because a challenge of the same name already existed.",
-        )
-        print(
-            Fore.LIGHTBLACK_EX
-            + "To fix this, remove the challenge and try again, or manually modify the challenge using the web tool.",
-        )
+    for challenge_name, data in online.items():
+        challenge = challenge_data[challenge_name]
+        ctfd.requirements(data["id"], challenge_data[challenge.name], online)
 
     return success
 
@@ -367,28 +353,18 @@ class CTFd:
     to work in the future, as long as the API doesn't change too much.
     """
 
-    NONCE_EXPRESSION = re.compile(
-        "'?csrf_?nonce'?\s*[:=]\s*['\"]([a-zA-Z0-9]*)['\"]", re.IGNORECASE
-    )
-
-    def __init__(self, url: str, token: str, verify: bool = True):
+    def __init__(self, url: str, token: str):
         self.base = url
-        self.verify = verify
         self.session = requests.Session()
 
         self.session.headers.update(
             {"Authorization": f"Token {token}",}
         )
 
-    def list(self) -> List[Challenge]:
-        resp = self.session.get(
-            self.base + "/api/v1/challenges?view=admin", verify=self.verify, json={},
-        )
-        resp_data = resp.json()
-        if "success" in resp_data and resp_data["success"]:
-            return resp_data["data"]
-        else:
-            return []
+    def list(self) -> List[Any]:
+        resp = self.session.get(f"{self.base}/api/v1/challenges?view=admin", json={})
+        resp.raise_for_status()
+        return resp.json()["data"]
 
     def upload(self, challenge: Challenge) -> int:
         # create challenge
@@ -400,14 +376,53 @@ class CTFd:
             "type": "standard",
             "description": challenge.description,
         }
-        resp = self.session.post(
-            self.base + "/api/v1/challenges", json=data, verify=self.verify,
-        )
+        resp = self.session.post(f"{self.base}/api/v1/challenges", json=data)
+        resp.raise_for_status()
         resp_data = resp.json()
-        if "success" not in resp_data or not resp_data["success"]:
-            raise RuntimeError("could not add challenge")
         challenge_id = int(resp_data["data"]["id"])
 
+        self._upload_parts(challenge_id, challenge)
+
+        return challenge_id
+
+    def requirements(
+        self, challenge_id: int, challenge: Challenge, online: Dict[str, Any],
+    ):
+        # determine the requirement ids
+        requirement_ids = []
+        for req in challenge.requirements:
+            requirement_ids.append(online[req]["id"])
+
+        # patch the requirements
+        if requirement_ids:
+            data = {"requirements": {"prerequisites": requirement_ids}}
+            resp = self.session.patch(
+                f"{self.base}/api/v1/challenges/{challenge_id}", json=data,
+            )
+            resp.raise_for_status()
+
+    def reupload(self, challenge_id: int, challenge: Challenge) -> int:
+        # patch challenge
+        data = {
+            "name": challenge.name,
+            "category": challenge.category,
+            "state": "visible",
+            "value": challenge.points,
+            "type": "standard",
+            "description": challenge.description,
+        }
+        resp = self.session.patch(
+            f"{self.base}/api/v1/challenges/{challenge_id}", json=data,
+        )
+        resp.raise_for_status()
+        resp_data = resp.json()
+
+        self._remove_parts(challenge_id, challenge)
+        self._upload_parts(challenge_id, challenge)
+
+        return challenge_id
+
+    def _upload_parts(self, challenge_id: int, challenge: Challenge):
         # add challenge flags
         for flag in challenge.flags:
             if flag.startswith("/") and flag.endswith("/"):
@@ -419,12 +434,8 @@ class CTFd:
             else:
                 data = {"challenge": challenge_id, "content": flag, "type": "static"}
 
-            resp = self.session.post(
-                self.base + "/api/v1/flags", json=data, verify=self.verify,
-            )
-            resp_data = resp.json()
-            if "success" not in resp_data or not resp_data["success"]:
-                raise RuntimeError("could not add flag to challenge")
+            resp = self.session.post(f"{self.base}/api/v1/flags", json=data)
+            resp.raise_for_status()
 
         # add challenge hints
         for hint in challenge.hints:
@@ -438,12 +449,8 @@ class CTFd:
                 "cost": hint["cost"],
                 "challenge": challenge_id,
             }
-            resp = self.session.post(
-                self.base + "/api/v1/hints", json=data, verify=self.verify,
-            )
-            resp_data = resp.json()
-            if "success" not in resp_data or not resp_data["success"]:
-                raise RuntimeError("could not add hint to challenge")
+            resp = self.session.post(f"{self.base}/api/v1/hints", json=data)
+            resp.raise_for_status()
 
         # upload challenge files
         if challenge.path:
@@ -456,38 +463,37 @@ class CTFd:
                 files = {"file": (filename, open(fullfilename, "rb"))}
 
                 resp = self.session.post(
-                    self.base + "/api/v1/files",
-                    data=data,
-                    files=files,
-                    verify=self.verify,
+                    f"{self.base}/api/v1/files", data=data, files=files,
                 )
-                resp_data = resp.json()
-                if "success" not in resp_data or not resp_data["success"]:
-                    raise RuntimeError("could not add file to challenge")
+                resp.raise_for_status()
 
-        return challenge_id
+    def _remove_parts(self, challenge_id: int, challenge: Challenge):
+        # remove challenge flags
+        resp = self.session.get(f"{self.base}/api/v1/challenges/{challenge_id}/flags")
+        resp.raise_for_status()
+        online_flags = resp.json()["data"]
+        for flag in online_flags:
+            self.session.delete(
+                f"{self.base}/api/v1/flags/{flag['id']}"
+            ).raise_for_status()
 
-    def requirements(
-        self, challenge_id: int, challenge: Challenge, online: List[Dict[str, Any]]
-    ):
-        # determine the requirement ids
-        requirement_ids = []
-        for req in challenge.requirements:
-            for chal in online:
-                if chal["name"] == req:
-                    requirement_ids.append(chal["id"])
-                    break
-        if len(requirement_ids) != len(challenge.requirements):
-            raise RuntimeError("could not find challenge requirements")
+        # remove challenge hints
+        resp = self.session.get(f"{self.base}/api/v1/challenges/{challenge_id}/hints")
+        resp.raise_for_status()
+        online_hints = resp.json()["data"]
+        for hint in online_hints:
+            self.session.delete(
+                f"{self.base}/api/v1/hints/{hint['id']}"
+            ).raise_for_status()
 
-        # link the requirements
-        if requirement_ids:
-            data = {"requirements": {"prerequisites": requirement_ids}}
-            resp = self.session.patch(
-                self.base + f"/api/v1/challenges/{challenge_id}",
-                json=data,
-                verify=self.verify,
-            )
+        # remove challenge files
+        resp = self.session.get(f"{self.base}/api/v1/challenges/{challenge_id}/files")
+        resp.raise_for_status()
+        online_files = resp.json()["data"]
+        for file in online_files:
+            self.session.delete(
+                f"{self.base}/api/v1/files/{file['id']}"
+            ).raise_for_status()
 
 
 if __name__ == "__main__":
