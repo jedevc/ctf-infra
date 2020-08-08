@@ -55,6 +55,11 @@ Deploying using docker-compose is a more lightweight alternative to building
 and maintaining an entire cluster. However, it will definitely be less
 flexible, so keep that in mind when making a decision.
 
+Set `PYTHONPATH` to the directory containing `ctftool.py` so you can import
+it in other scripts:
+
+    $ export PYTHONPATH=$PWD
+
 Copy the infrastructure code to a build directory:
 
     $ mkdir -p build

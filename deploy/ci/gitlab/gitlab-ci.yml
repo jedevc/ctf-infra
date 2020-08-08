@@ -7,6 +7,8 @@ variables:
   IMAGE_REPO: $CI_REGISTRY_IMAGE
   IMAGE_TAG: $CI_COMMIT_REF_NAME
 
+  PYTHONPATH: $CI_PROJECT_DIR
+
 validate:
   image: python:3.8-alpine
   stage: check

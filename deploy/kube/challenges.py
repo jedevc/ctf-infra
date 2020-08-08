@@ -4,8 +4,6 @@ import os
 import site
 import yaml
 
-base = pathlib.Path(__file__).parent.parent.parent.absolute()
-site.addsitedir(base)
 import ctftool
 
 
