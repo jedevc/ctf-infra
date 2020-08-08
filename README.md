@@ -111,13 +111,13 @@ challenges that listen on ports.
     $ helm repo update
     $ kubectl create namespace ingress-nginx
     $ helm install ingress ingress-nginx/ingress-nginx \
-        --namespace ingress \
+        --namespace ingress-nginx \
         --set controller.hostNetwork=true \
         --set controller.kind=DaemonSet \
         --set controller.hostPort.enabled=true \
         --set controller.service.enabled=false \
         --set controller.publishService.enabled=false \
-        --set controller.extraArgs.tcp-services-configmap=ingress/tcp-services
+        --set controller.extraArgs.tcp-services-configmap=ingress-nginx/tcp-services
 
 #### Cert Manager
 
@@ -146,7 +146,7 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: letsencrypt@jedevc.com
+    email: letsencrypt@example.com
     privateKeySecretRef:
       name: letsencrypt-staging
     solvers:
@@ -161,7 +161,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: letsencrypt@jedevc.com
+    email: letsencrypt@example.com
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:

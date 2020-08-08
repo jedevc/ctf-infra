@@ -16,7 +16,7 @@ secretGenerator:
   - name: ctfd-redis-credentials
     literals:
       - password=$CTFD_REDIS_PASSWORD
-      - url=redis://redis:${CTFD_REDIS_PASSWORD}@ctfd-redis
+      - url=redis://:${CTFD_REDIS_PASSWORD}@ctfd-redis
   - name: ctfd-secrets
     literals:
       - secret=$CTFD_SECRET
