@@ -45,10 +45,6 @@ def generate_kustomization(challenges):
     return {
         "apiVersion": "kustomize.config.k8s.io/v1beta1",
         "kind": "Kustomization",
-        "configMapGenerator": [
-            {"namespace": "ingress-nginx", "name": "tcp-services", "literals": ports}
-        ],
-        "generatorOptions": {"disableNameSuffixHash": True,},
         "resources": resources,
     }
 
@@ -105,6 +101,7 @@ def generate_service(challenge):
             {
                 "port": port.external,
                 "targetPort": port.internal,
+                "nodePort": port.external,
                 "protocol": port.protocol.upper(),
             }
         )
@@ -116,7 +113,11 @@ def generate_service(challenge):
             "name": f"challenge-{challenge.name}-service",
             "labels": {"challenge": challenge.name},
         },
-        "spec": {"ports": ports, "selector": {"challenge": challenge.name}},
+        "spec": {
+            "type": "NodePort",
+            "ports": ports,
+            "selector": {"challenge": challenge.name},
+        },
     }
 
 

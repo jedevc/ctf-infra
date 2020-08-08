@@ -104,8 +104,8 @@ Apply the infrastructure to the cluster:
 #### Ingress
 
 You need to install [Nginx Ingress](https://kubernetes.github.io/ingress-nginx/).
-We set up without an external LoadBalancer, as this causes problems for the
-challenges that listen on ports.
+
+The following installs it *without* a LoadBalancer service, for lower costs.
 
     $ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
     $ helm repo update
@@ -116,8 +116,7 @@ challenges that listen on ports.
         --set controller.kind=DaemonSet \
         --set controller.hostPort.enabled=true \
         --set controller.service.enabled=false \
-        --set controller.publishService.enabled=false \
-        --set controller.extraArgs.tcp-services-configmap=ingress-nginx/tcp-services
+        --set controller.publishService.enabled=false
 
 #### Cert Manager
 
