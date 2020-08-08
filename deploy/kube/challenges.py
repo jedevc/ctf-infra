@@ -46,7 +46,7 @@ def generate_kustomization(challenges):
         "apiVersion": "kustomize.config.k8s.io/v1beta1",
         "kind": "Kustomization",
         "configMapGenerator": [
-            {"namespace": "ingress", "name": "tcp-services", "literals": ports}
+            {"namespace": "ingress-nginx", "name": "tcp-services", "literals": ports}
         ],
         "generatorOptions": {"disableNameSuffixHash": True,},
         "resources": resources,
