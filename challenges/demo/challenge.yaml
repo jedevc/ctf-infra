@@ -1,4 +1,5 @@
 name: demo
+display: Demo
 category: demo
 description: >
   There's a flag on the webserver.
