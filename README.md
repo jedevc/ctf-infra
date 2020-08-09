@@ -24,6 +24,20 @@ Useful ctftool commands used in development include:
 
 ## Deployment
 
+Deploying the CTF should be fairly simple once setup, but can be a little involved.
+
+There are three options:
+
+- Docker (not recommended)
+- Docker Compose
+- Kubernetes
+
+For all of them, you'll need to point your DNS records in the right place.
+It's recommended that if your challenges ues HTTP servers, you should access
+your challenges over a different domain name than the CTFd instance -
+otherwise, browsers will try and be "clever" and upgrade you to HTTPS for
+your challenges
+
 ### Docker
 
 The docker build steps contain basic primitives for building challenge images
@@ -88,20 +102,9 @@ Export required environment variables (see `.env.sample` for more info):
     $ export CTFD_REDIS_PASSWORD=password
     $ export CTFD_SECRET=ctfd
 
-Copy the infrastructure code to a build directory:
+#### Install dependencies
 
-    $ mkdir -p build
-    $ cp -R deploy/kube/ build/
-
-Build the build step for the infrastructure:
-
-    $ ./build/kube/generate.sh
-
-Apply the infrastructure to the cluster:
-  
-    $ kubectl apply -k build/kube/
-
-#### Ingress
+##### Ingress
 
 You need to install [Nginx Ingress](https://kubernetes.github.io/ingress-nginx/).
 
@@ -118,7 +121,7 @@ The following installs it *without* a LoadBalancer service, for lower costs.
         --set controller.service.enabled=false \
         --set controller.publishService.enabled=false
 
-#### Cert Manager
+##### Cert Manager
 
 To handle TLS certificates, we use [Cert Manager](https://cert-manager.io).
 
@@ -171,3 +174,27 @@ spec:
 
 When you setup the ClusterIssuers, the CTFd instance should automatically be
 given a TLS certificate.
+
+#### Build
+
+Copy the infrastructure code to a build directory:
+
+    $ mkdir -p build
+    $ cp -R deploy/kube/ build/
+
+Build the build step for the infrastructure:
+
+    $ ./build/kube/generate.sh
+
+Apply the infrastructure to the cluster:
+  
+    $ kubectl apply -k build/kube/
+
+#### Notes
+
+- The kubernetes infra uses NodePort to expose services ports to the
+  internet. By default this range is 30000-32767, but it's often nice to
+  expose ports lower than that.
+
+  You can modify this range by editing `/etc/kubernetes/manifests/kube-apiserver.yaml`
+  and adding `--service-node-port-range=<lower>-<upper>` to `spec.containers.command`.
