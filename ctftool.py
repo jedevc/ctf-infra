@@ -103,24 +103,25 @@ def validate_challenges(args):
             success = False
             print(f"\n{Fore.RED}✗{Style.RESET_ALL} {message}", end="")
 
-        NAME_REGEX = "^[a-zA-Z0-9-_]+$"
+        NAME_REGEX = "^[a-z0-9-_]+$"
 
         if challenge.error is not None:
             fail(f"challenge parse error ({challenge.error})")
         else:
             if not challenge.name:
-                fail("challenge name must not be empty")
+                fail("challenge 'name' must not be empty")
             elif not re.match(NAME_REGEX, challenge.name):
-                fail(f'challenge name does not match regex "{NAME_REGEX}"')
+                fail(f'challenge \'name\' does not match regex "{NAME_REGEX}"')
             elif challenge.name in existing_challenges:
-                fail("challenge name must not be a duplicate")
+                fail("challenge 'name' must not be a duplicate")
             else:
                 existing_challenges.add(challenge.name)
 
+            if not challenge.display:
+                fail("challenge 'display' must not be empty")
+
             if not challenge.category:
-                fail("challenge category must not be empty")
-            elif not re.match(NAME_REGEX, challenge.category):
-                fail(f'challenge category does not match regex "{NAME_REGEX}"')
+                fail("challenge 'category' must not be empty")
 
             for filename in challenge.files:
                 if filename in challenge.generate:
@@ -135,14 +136,21 @@ def validate_challenges(args):
 
             for hint in challenge.hints:
                 if not isinstance(hint, dict):
-                    fail("hint is not a map")
+                    fail("challenge hint is not a map")
                 elif "text" not in hint:
-                    fail("hint does not have text")
+                    fail("challenge hint does not have text")
                 elif "cost" not in hint:
-                    fail("hint does not have a cost")
+                    fail("challenge hint does not have a cost")
 
             if len(challenge.flags) == 0:
                 fail("challenge must have at least 1 flag")
+            for flag in challenge.flags:
+                starts = flag.startswith('/')
+                ends = flag.endswith('/')
+                if starts and not ends:
+                    fail("challenge flag invalid regex: starts with '/' but does not end with '/'")
+                if not starts and ends:
+                    fail("challenge flag invalid regex: ends with '/' but does not start with '/'")
 
         if failed:
             print()
@@ -190,24 +198,24 @@ def upload_challenges(args):
     for challenge in Challenge.load_all():
         print(challenge.path, end="")
         try:
-            if challenge.name in online:
-                cid = ctfd.reupload(online[challenge.name]["id"], challenge)
+            if challenge.display in online:
+                ctfd.reupload(online[challenge.display]["id"], challenge)
                 print(f"{Fore.YELLOW} ~")
             else:
-                cid = ctfd.upload(challenge)
+                ctfd.upload(challenge)
                 print(f"{Fore.GREEN} ✓")
         except Exception as e:
             success = False
             print(f"{Fore.RED} ✗ {e}")
             continue
 
-        challenge_data[challenge.name] = challenge
+        challenge_data[challenge.display] = challenge
         online = {data["name"]: data for data in ctfd.list()}
 
     # apply requirements
     for challenge_name, data in online.items():
         challenge = challenge_data[challenge_name]
-        ctfd.requirements(data["id"], challenge_data[challenge.name], online)
+        ctfd.requirements(data["id"], challenge, online)
 
     return success
 
@@ -230,6 +238,7 @@ class Challenge:
     def __init__(
         self,
         name: str,
+        display: str,
         category: str,
         path: Optional[str],
         description: str = "",
@@ -242,6 +251,7 @@ class Challenge:
         deploy: "Deploy" = None,
     ):
         self.name = name
+        self.display = display
         self.category = category
         self.path = path
         self.description = description
@@ -294,6 +304,7 @@ class Challenge:
     def _load_dict(data: Dict[str, Any]) -> "Challenge":
         return Challenge(
             name=data.get("name", ""),
+            display=data.get("display", ""),
             category=data.get("category", ""),
             path=None,
             description=data.get("description", ""),
@@ -369,7 +380,7 @@ class CTFd:
     def upload(self, challenge: Challenge) -> int:
         # create challenge
         data = {
-            "name": challenge.name,
+            "name": challenge.display,
             "category": challenge.category,
             "state": "visible",
             "value": challenge.points,
@@ -404,7 +415,7 @@ class CTFd:
     def reupload(self, challenge_id: int, challenge: Challenge) -> int:
         # patch challenge
         data = {
-            "name": challenge.name,
+            "name": challenge.display,
             "category": challenge.category,
             "state": "visible",
             "value": challenge.points,
