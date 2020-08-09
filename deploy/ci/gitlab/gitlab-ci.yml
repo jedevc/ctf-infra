@@ -4,10 +4,10 @@ stages:
   - deploy
 
 variables:
+  PYTHONPATH: $CI_PROJECT_DIR
+
   IMAGE_REPO: $CI_REGISTRY_IMAGE
   IMAGE_TAG: $CI_COMMIT_REF_NAME
-
-  PYTHONPATH: $CI_PROJECT_DIR
 
 validate:
   image: python:3.8-alpine
@@ -18,15 +18,19 @@ validate:
     - ./ctftool.py validate
 
 generate:
-  image: alpine:latest
+  image: ubuntu:20.04
   stage: check
   before_script:
-    - apk add --no-cache build-base python3 py3-pip
+    - apt-get update
+    - apt-get install -y build-essential python3 python3-pip
     - pip3 install colorama requests pyyaml
   script:
     - ./ctftool.py generate
+  artifacts:
+    paths:
+      - challenges/
 
-build_images:
+docker:
   image: docker:stable
   stage: build
   services:
@@ -36,12 +40,11 @@ build_images:
     - pip3 install pyyaml
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - ./ctftool.py generate
     - ./deploy/docker/build.sh
     - ./deploy/docker/push.sh
 
-deploy:
-  image: docker:latest
+deploy-ctfd:
+  image: alpine:latest
   stage: deploy
   environment:
     name: production
@@ -55,6 +58,50 @@ deploy:
     - cp $KUBECONFIG ~/.kube/config
   script:
     - ./deploy/kube/generate.sh
-    - kubectl apply -k deploy/kube/
+    - kubectl apply -k ./deploy/kube/ctfd/
   only:
     - master
+  when: manual
+
+deploy-challenges:
+  image: alpine:latest
+  stage: deploy
+  environment:
+    name: production
+  before_script:
+    - apk add --no-cache curl bash gettext python3 py3-pip
+    - pip3 install pyyaml
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    - mkdir ~/.kube
+    - cp $KUBECONFIG ~/.kube/config
+
+    - >
+      kubectl create secret -n $KUBE_NAMESPACE docker-registry gitlab-registry
+      --docker-server="$CI_REGISTRY"
+      --docker-username="$CI_REGISTRY_USER"
+      --docker-password="$CI_REGISTRY_PASSWORD"
+      --dry-run=client -o yaml | kubectl replace -n $KUBE_NAMESPACE --force -f -
+    - >
+      kubectl patch serviceaccount -n $KUBE_NAMESPACE default
+      --patch '{"imagePullSecrets": [{"name": "gitlab-registry"}]}'
+  script:
+    - ./deploy/kube/generate.sh
+    - kubectl apply -k ./deploy/kube/challenges/
+  only:
+    - master
+  when: manual
+
+upload-challenges:
+  image: alpine:latest
+  stage: deploy
+  before_script:
+    - apk add --no-cache python3 py3-pip build-base
+    - pip3 install colorama requests pyyaml
+  script:
+    - ./ctftool.py generate
+    - ./ctftool.py upload -t $CTFD_TOKEN https://$DOMAIN
+  only:
+    - master
+  when: manual
