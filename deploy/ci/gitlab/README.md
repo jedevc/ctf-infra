@@ -8,6 +8,8 @@ Integration for a CTF *might* look like.
 - Create a kubernetes cluster
     - Follow the generic instructions for kubernetes
     - Add the cluster to a GitLab project
+- Create a [GitLab Deploy Token](https://docs.gitlab.com/ee/user/project/deploy_tokens/#gitlab-deploy-token)
+  with container registry read permissions.
 - Define the following CI variables:
     - `DOMAIN`
         - Make sure your DNS records are pointing to your cluster!

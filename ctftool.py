@@ -161,6 +161,8 @@ def validate_challenges(args):
 
 
 def generate_files(args):
+    success = True
+
     for challenge in Challenge.load_all(False):
         for filename, command in challenge.generate.items():
             cwd = os.path.dirname(challenge.path)
@@ -169,12 +171,16 @@ def generate_files(args):
                 subprocess.run(command, shell=True, check=True, cwd=cwd)
             except subprocess.CalledProcessError:
                 print(f"failed to generate {filename} {Fore.RED}✗{Style.RESET_ALL}")
+                success = False
                 raise
 
             if not os.path.exists(os.path.join(cwd, filename)):
                 print(f"did not generate {filename} {Fore.RED}✗{Style.RESET_ALL}")
+                success = False
             else:
                 print(f"generated {filename} {Fore.GREEN}✔{Style.RESET_ALL}")
+
+    return success
 
 
 def clean_files(args):
