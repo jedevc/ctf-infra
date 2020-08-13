@@ -13,7 +13,6 @@ for source in $($SOURCE/deployable.py); do
 
     if [ -n "$IMAGE_TAG" ]; then
         docker push "${IMAGE_NAME}:${IMAGE_TAG}"
-    else
-        docker push "${IMAGE_NAME}:latest"
     fi
+    docker push "${IMAGE_NAME}:latest"
 done

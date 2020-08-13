@@ -18,9 +18,9 @@ for source in $($SOURCE/deployable.py); do
     fi
 
     if [ -n "$IMAGE_REPO" ]; then
-        docker pull "$IMAGE_NAME:$IMAGE_TAG" || true
+        docker pull "$IMAGE_NAME:latest" || true
     fi
-    docker build --cache-from "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME:$IMAGE_TAG" .
+    docker build --cache-from "$IMAGE_NAME:latest" -t "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME:latest" .
 
     cd $ROOT
 done
