@@ -90,7 +90,8 @@ def list_challenges(args):
 def validate_challenges(args):
     success = True
 
-    existing_challenges = set()
+    existing_names = set()
+    existing_displays = set()
 
     for challenge in Challenge.load_all(False):
         print(challenge.path, end="")
@@ -112,13 +113,17 @@ def validate_challenges(args):
                 fail("challenge 'name' must not be empty")
             elif not re.match(NAME_REGEX, challenge.name):
                 fail(f'challenge \'name\' does not match regex "{NAME_REGEX}"')
-            elif challenge.name in existing_challenges:
+            elif challenge.name in existing_names:
                 fail("challenge 'name' must not be a duplicate")
             else:
-                existing_challenges.add(challenge.name)
+                existing_names.add(challenge.name)
 
             if not challenge.display:
                 fail("challenge 'display' must not be empty")
+            elif challenge.display in existing_displays:
+                fail("challenge 'display' must not be a duplicate")
+            else:
+                existing_displays.add(challenge.display)
 
             if not challenge.category:
                 fail("challenge 'category' must not be empty")
