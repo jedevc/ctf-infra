@@ -18,19 +18,16 @@ def main():
             print(f"Building from {challenge.path}...")
 
             image_name = f"challenge-{challenge.name}"
-            image_tag = os.environ.get("IMAGE_TAG")
             if (image_repo := os.environ.get("IMAGE_REPO")):
                 image_name = f"{image_repo}/{image_name}"
                 subprocess.run(["docker", "pull", f"{image_name}:latest"])
 
-            subprocess.run(["docker", "build", "-t", f"{image_name}:latest", "."], cwd=os.path.dirname(challenge.path), check=True)
-            if image_tag:
-                subprocess.run(["docker", "tag", f"{image_name}:latest", f"{image_name}:{image_tag}"], check=True)
+            subprocess.run(["docker", "build", "-t", f"{image_name}:{challenge.githash}", "."], cwd=os.path.dirname(challenge.path), check=True)
+            subprocess.run(["docker", "tag", f"{image_name}:{challenge.githash}", f"{image_name}:latest"], check=True)
 
             if args.push:
+                subprocess.run(["docker", "push", f"{image_name}:{challenge.githash}"], check=True)
                 subprocess.run(["docker", "push", f"{image_name}:latest"], check=True)
-                if image_tag:
-                    subprocess.run(["docker", "push", f"{image_name}:{image_tag}"], check=True)
 
 
 if __name__ == "__main__":

@@ -276,6 +276,17 @@ class Challenge:
 
         self.error: Optional[Exception] = None
 
+    @property
+    def githash(self) -> str:
+        proc = subprocess.run([
+            "git", "log",
+            "-n", "1",
+            "--pretty=format:%h",
+            "--", 
+            os.path.dirname(self.path),
+        ], stdout=subprocess.PIPE)
+        return proc.stdout.decode().strip()
+
     @staticmethod
     def load_all(suppress_errors: bool = False) -> Iterable["Challenge"]:
         globpath = "challenges/**/challenge.*"

@@ -46,7 +46,6 @@ intended to be used in conjunction with either docker-compose or kubernetes.
 
 Set optional environment variables:
 
-    $ export IMAGE_TAG=...
     $ export IMAGE_REPO=...
 
 Build the challenge images:

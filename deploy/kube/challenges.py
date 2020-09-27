@@ -66,14 +66,13 @@ def generate_deployment(challenge):
         return None
 
     image_name = f"challenge-{challenge.name}"
-    image_tag = os.environ.get("IMAGE_TAG", "latest")
-    if (image_repo := os.environ.get("IMAGE_REPO")) :
+    if (image_repo := os.environ.get("IMAGE_REPO")):
         image_name = f"{image_repo}/{image_name}"
-        subprocess.run(["docker", "pull", f"{image_name}:{image_tag}"])
+        subprocess.run(["docker", "pull", f"{image_name}:latest"])
 
     container = {
         "name": f"challenge-{challenge.name}",
-        "image": f"{image_name}:{image_tag}",
+        "image": f"{image_name}:{challenge.githash}",
     }
 
     ports = []
