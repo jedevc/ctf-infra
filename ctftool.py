@@ -202,31 +202,30 @@ def upload_challenges(args):
     ctfd = CTFd(args.url, args.token)
     success = True
 
+    challenges = {}
     online = {data["name"]: data for data in ctfd.list()}
-    challenge_data = {}
 
     # upload challenges
     for challenge in Challenge.load_all():
         print(challenge.path, end="")
         try:
             if challenge.display in online:
-                ctfd.reupload(online[challenge.display]["id"], challenge)
+                challenge_id = ctfd.reupload(online[challenge.display]["id"], challenge)
                 print(f"{Fore.YELLOW} ~")
             else:
-                ctfd.upload(challenge)
+                challenge_id = ctfd.upload(challenge)
                 print(f"{Fore.GREEN} ✓")
+
+            setattr(challenge, "id", challenge_id)
+            challenges[challenge.name] = challenge
         except Exception as e:
             success = False
             print(f"{Fore.RED} ✗ {e}")
             continue
 
-        challenge_data[challenge.display] = challenge
-        online = {data["name"]: data for data in ctfd.list()}
-
     # apply requirements
-    for challenge_name, data in online.items():
-        challenge = challenge_data[challenge_name]
-        ctfd.requirements(data["id"], challenge, online)
+    for name, challenge in challenges.items():
+        ctfd.requirements(challenge, challenges)
 
     return success
 
@@ -251,7 +250,7 @@ class Challenge:
         name: str,
         display: str,
         category: str,
-        path: Optional[str],
+        path: Optional[str] = None,
         description: str = "",
         points: int = 0,
         flags: List[str] = None,
@@ -277,15 +276,19 @@ class Challenge:
         self.error: Optional[Exception] = None
 
     @property
-    def githash(self) -> str:
+    def githash(self) -> Optional[str]:
         proc = subprocess.run([
             "git", "log",
             "-n", "1",
             "--pretty=format:%h",
-            "--", 
+            "--",
             os.path.dirname(self.path),
         ], stdout=subprocess.PIPE)
-        return proc.stdout.decode().strip()
+        out = proc.stdout.decode().strip()
+        if out:
+            return out
+        else:
+            return None
 
     @staticmethod
     def load_all(suppress_errors: bool = False) -> Iterable["Challenge"]:
@@ -421,18 +424,18 @@ class CTFd:
         return challenge_id
 
     def requirements(
-        self, challenge_id: int, challenge: Challenge, online: Dict[str, Any],
+        self, challenge: Challenge, challenges: Dict[str, Challenge],
     ):
         # determine the requirement ids
-        requirement_ids = []
+        prerequisites = []
         for req in challenge.requirements:
-            requirement_ids.append(online[req]["id"])
+            prerequisites.append(challenges[req].id)
 
         # patch the requirements
-        if requirement_ids:
-            data = {"requirements": {"prerequisites": requirement_ids}}
+        if prerequisites:
+            data = {"requirements": {"prerequisites": prerequisites}}
             resp = self.session.patch(
-                f"{self.base}/api/v1/challenges/{challenge_id}", json=data,
+                f"{self.base}/api/v1/challenges/{challenge.id}", json=data,
             )
             resp.raise_for_status()
 
