@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ctfd-ingress
@@ -11,9 +11,12 @@ spec:
       http:
         paths:
           - path: /
+            pathType: Prefix
             backend:
-              serviceName: ctfd-deployment
-              servicePort: 8000
+              service:
+                name: ctfd-deployment
+                port:
+                  number: 8000
   tls:
     - hosts:
         - $DOMAIN

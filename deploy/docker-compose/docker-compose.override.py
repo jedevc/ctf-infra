@@ -29,16 +29,20 @@ def generate_service(challenge):
     if not challenge.deploy.docker:
         return None
 
-    ports = []
-    for port in challenge.deploy.ports:
-        ports.append(f"{port.external}:{port.internal}/{port.protocol}")
+    result = {
+        "image": f"challenge-{challenge.name}",
+        "restart": "always",
+    }
+    if challenge.deploy.env:
+        result["environment"] = {key: f"${key}" for key in challenge.deploy.env}
+    if challenge.deploy.ports:
+        ports = []
+        for port in challenge.deploy.ports:
+            ports.append(f"{port.external}:{port.internal}/{port.protocol}")
+        result["ports"] = ports
 
     return {
-        f"challenge-{challenge.name}": {
-            "image": f"challenge-{challenge.name}",
-            "restart": "always",
-            "ports": ports,
-        }
+        f"challenge-{challenge.name}": result,
     }
 
 

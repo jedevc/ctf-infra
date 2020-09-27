@@ -40,8 +40,7 @@ docker:
     - pip3 install pyyaml
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - ./deploy/docker/build.sh
-    - ./deploy/docker/push.sh
+    - ./deploy/build.sh --push
 
 deploy-ctfd:
   image: alpine:latest

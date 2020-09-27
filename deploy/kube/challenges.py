@@ -13,20 +13,28 @@ def main():
     os.makedirs(os.path.join(local), exist_ok=True)
 
     challenges = list(ctftool.Challenge.load_all())
+    challenges_added = []
+
     for challenge in challenges:
+        deploy = generate_deployment(challenge)
+        service = generate_service(challenge)
+
+        if not deploy and not service:
+            continue
+
         with open(os.path.join(local, challenge.name) + ".yaml", "w") as f:
-            service = generate_service(challenge)
             if service:
                 yaml.dump(service, f)
                 print("---", file=f)
 
-            deploy = generate_deployment(challenge)
             if deploy:
                 yaml.dump(deploy, f)
                 print("---", file=f)
 
+        challenges_added.append(challenge)
+
     with open(os.path.join(local, "kustomization.yaml"), "w") as f:
-        kustomization = generate_kustomization(challenges)
+        kustomization = generate_kustomization(challenges_added)
         if kustomization:
             yaml.dump(kustomization, f)
 
@@ -53,12 +61,28 @@ def generate_deployment(challenge):
     if not challenge.deploy.docker:
         return None
 
+    image_name = f"challenge-{challenge.name}"
+    image_tag = os.environ.get("IMAGE_TAG", "latest")
+    if (image_repo := os.environ.get("IMAGE_REPO")):
+        image_name = f"{image_repo}/{image_name}"
+        subprocess.run(["docker", "pull", f"{image_name}:{image_tag}"])
+
+    container = {
+        "name": f"challenge-{challenge.name}",
+        "image": f"{image_name}:{image_tag}",
+    }
+
     ports = []
     for port in challenge.deploy.ports:
         ports.append({"containerPort": port.internal})
+    if ports:
+        container["ports"] = ports
 
-    IMAGE_REPO = os.environ.get("IMAGE_REPO", "")
-    IMAGE_TAG = os.environ.get("IMAGE_TAG", "latest")
+    env = []
+    for key in challenge.deploy.env:
+        env.append({"name": key, "value": os.environ[key]})
+    if env:
+        container["env"] = env
 
     return {
         "apiVersion": "apps/v1",
@@ -77,14 +101,7 @@ def generate_deployment(challenge):
                 },
                 "spec": {
                     "automountServiceAccountToken": False,
-                    "containers": [
-                        {
-                            "name": f"challenge-{challenge.name}",
-                            "image": f"{IMAGE_REPO}/challenge-{challenge.name}:{IMAGE_TAG}",
-                            "imagePullPolicy": "Always",
-                            "ports": ports,
-                        },
-                    ],
+                    "containers": [container],
                 },
             },
         },
@@ -92,13 +109,14 @@ def generate_deployment(challenge):
 
 
 def generate_service(challenge):
-    if not challenge.deploy.docker:
+    if not challenge.deploy.docker or not challenge.deploy.ports:
         return None
 
     ports = []
     for port in challenge.deploy.ports:
         ports.append(
             {
+                "name": f"port-{port.external}-{port.protocol.lower()}",
                 "port": port.external,
                 "targetPort": port.internal,
                 "nodePort": port.external,

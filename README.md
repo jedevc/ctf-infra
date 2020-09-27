@@ -51,11 +51,11 @@ Set optional environment variables:
 
 Build the challenge images:
 
-    $ ./deploy/docker/build.sh
+    $ ./deploy/build.sh
 
-Push them to a private registry:
+Build and push challenge images to a private registry:
 
-    $ ./deploy/docker/build.sh
+    $ ./deploy/build.sh --push
 
 The next steps assume that you have configured your machines to automatically
 pull from this private registry.
@@ -196,5 +196,6 @@ Apply the infrastructure to the cluster:
   internet. By default this range is 30000-32767, but it's often nice to
   expose ports lower than that.
 
-  You can modify this range by editing `/etc/kubernetes/manifests/kube-apiserver.yaml`
-  and adding `--service-node-port-range=<lower>-<upper>` to `spec.containers.command`.
+  You can modify this range by modifying `apiserver.service-port-range`. For
+  kubeadm, edit `/etc/kubernetes/manifests/kube-apiserver.yaml` and add
+  `--service-node-port-range=<lower>-<upper>` to `spec.containers.command`.

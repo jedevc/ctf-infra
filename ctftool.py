@@ -330,14 +330,16 @@ class Challenge:
 
 
 class Deploy:
-    def __init__(self, docker: bool = False, ports: List["Port"] = None):
+    def __init__(self, docker: bool = False, env: List[str] = None, ports: List["Port"] = None):
         self.docker = docker
+        self.env = env if env else []
         self.ports = ports if ports else []
 
     @staticmethod
     def _load_dict(data: Dict[str, Any]) -> "Deploy":
         return Deploy(
             docker=data.get("docker", False),
+            env=data.get("env", []),
             ports=[Port._load_dict(port) for port in data.get("ports", [])],
         )
 
