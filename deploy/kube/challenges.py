@@ -13,14 +13,12 @@ def main():
     os.makedirs(os.path.join(local), exist_ok=True)
 
     challenges = list(ctftool.Challenge.load_all())
-    challenges_added = []
-
     for challenge in challenges:
+        if not challenge.deploy.docker:
+            continue
+
         deploy = generate_deployment(challenge)
         service = generate_service(challenge)
-
-        if not deploy and not service:
-            continue
 
         with open(os.path.join(local, challenge.name) + ".yaml", "w") as f:
             if service:
@@ -31,29 +29,35 @@ def main():
                 yaml.dump(deploy, f)
                 print("---", file=f)
 
-        challenges_added.append(challenge)
-
     with open(os.path.join(local, "kustomization.yaml"), "w") as f:
-        kustomization = generate_kustomization(challenges_added)
+        kustomization = generate_kustomization(challenges)
         if kustomization:
             yaml.dump(kustomization, f)
 
 
 def generate_kustomization(challenges):
-    ports = []
     resources = []
+    secrets = []
     for challenge in challenges:
+        if not challenge.deploy.docker:
+            continue
+
         resources.append(challenge.name + ".yaml")
 
-        for port in challenge.deploy.ports:
-            ports.append(
-                f"{port.external}=default/challenge-{challenge.name}-service:{port.internal}"
+        if challenge.deploy.env:
+            secrets.append(
+                {
+                    "name": f"challenge-{challenge.name}-secret",
+                    "type": "Opaque",
+                    "literals": [f"{key}=${key}" for key in challenge.deploy.env],
+                }
             )
 
     return {
         "apiVersion": "kustomize.config.k8s.io/v1beta1",
         "kind": "Kustomization",
         "resources": resources,
+        "secretGenerator": secrets,
     }
 
 
@@ -63,7 +67,7 @@ def generate_deployment(challenge):
 
     image_name = f"challenge-{challenge.name}"
     image_tag = os.environ.get("IMAGE_TAG", "latest")
-    if (image_repo := os.environ.get("IMAGE_REPO")):
+    if (image_repo := os.environ.get("IMAGE_REPO")) :
         image_name = f"{image_repo}/{image_name}"
         subprocess.run(["docker", "pull", f"{image_name}:{image_tag}"])
 
@@ -80,7 +84,17 @@ def generate_deployment(challenge):
 
     env = []
     for key in challenge.deploy.env:
-        env.append({"name": key, "value": os.environ[key]})
+        env.append(
+            {
+                "name": key,
+                "valueFrom": {
+                    "secretKeyRef": {
+                        "name": f"challenge-{challenge.name}-secret",
+                        "key": key,
+                    }
+                },
+            }
+        )
     if env:
         container["env"] = env
 
