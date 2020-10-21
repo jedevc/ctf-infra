@@ -29,8 +29,14 @@ def generate_service(challenge):
     if not challenge.deploy.docker:
         return None
 
+    image_name = f"challenge-{challenge.name}"
+    if (image_prefix := os.environ.get("IMAGE_PREFIX")):
+        image_name = f"{image_prefix}-{image_name}"
+    if (image_repo := os.environ.get("IMAGE_REPO")):
+        image_name = f"{image_repo}/{image_name}"
+
     result = {
-        "image": f"challenge-{challenge.name}",
+        "image": image_name,
         "restart": "always",
     }
     if challenge.deploy.env:
