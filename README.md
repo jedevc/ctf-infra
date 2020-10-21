@@ -44,23 +44,17 @@ The docker build steps contain basic primitives for building challenge images
 and containers. They probably shouldn't be used on their own, and are
 intended to be used in conjunction with either docker-compose or kubernetes.
 
-Set optional environment variables:
-
-    $ export IMAGE_REPO=...
-
 Build the challenge images:
 
-    $ ./deploy/build.sh
+    $ ./deploy/build.py
 
 Build and push challenge images to a private registry:
 
-    $ ./deploy/build.sh --push
+    $ export IMAGE_REPO=...
+    $ ./deploy/build.py --push
 
 The next steps assume that you have configured your machines to automatically
 pull from this private registry.
-
-If you don't happen to have a private registry, just leave `IMAGE_REPO`
-unset and everything should be fine.
 
 ### Docker Compose
 
