@@ -68,7 +68,6 @@ def generate_deployment(challenge):
     image_name = f"challenge-{challenge.name}"
     if (image_repo := os.environ.get("IMAGE_REPO")):
         image_name = f"{image_repo}/{image_name}"
-        subprocess.run(["docker", "pull", f"{image_name}:latest"])
 
     container = {
         "name": f"challenge-{challenge.name}",
