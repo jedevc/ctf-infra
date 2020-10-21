@@ -127,14 +127,14 @@ First we install it:
     $ kubectl create namespace cert-manager
     $ helm install cert-manager jetstack/cert-manager \
         --namespace cert-manager \
-        --version v0.15.1 \
+        --version v1.0.3 \
         --set installCRDs=true
 
 Then we need to setup a couple LetsEncrypt issuers (one for staging, one for
 production):
 
 ```yaml
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: letsencrypt-staging
