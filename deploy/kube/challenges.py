@@ -106,7 +106,7 @@ def generate_deployment(challenge):
             "labels": {"app": "challenge", "challenge": challenge.name},
         },
         "spec": {
-            "replicas": 1,
+            "replicas": challenge.deploy.replicas,
             "selector": {"matchLabels": {"challenge": challenge.name}},
             "template": {
                 "metadata": {
