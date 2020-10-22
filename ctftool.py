@@ -112,7 +112,7 @@ def validate_challenges(args):
             if not challenge.name:
                 fail("challenge 'name' must not be empty")
             elif not re.match(NAME_REGEX, challenge.name):
-                fail(f'challenge \'name\' does not match regex "{NAME_REGEX}"')
+                fail(f"challenge 'name' does not match regex \"{NAME_REGEX}\"")
             elif challenge.name in existing_names:
                 fail("challenge 'name' must not be a duplicate")
             else:
@@ -150,12 +150,16 @@ def validate_challenges(args):
             if len(challenge.flags) == 0:
                 fail("challenge must have at least 1 flag")
             for flag in challenge.flags:
-                starts = flag.startswith('/')
-                ends = flag.endswith('/')
+                starts = flag.startswith("/")
+                ends = flag.endswith("/")
                 if starts and not ends:
-                    fail("challenge flag invalid regex: starts with '/' but does not end with '/'")
+                    fail(
+                        "challenge flag invalid regex: starts with '/' but does not end with '/'"
+                    )
                 if not starts and ends:
-                    fail("challenge flag invalid regex: ends with '/' but does not start with '/'")
+                    fail(
+                        "challenge flag invalid regex: ends with '/' but does not start with '/'"
+                    )
 
         if failed:
             print()
@@ -277,13 +281,10 @@ class Challenge:
 
     @property
     def githash(self) -> Optional[str]:
-        proc = subprocess.run([
-            "git", "log",
-            "-n", "1",
-            "--pretty=format:%h",
-            "--",
-            os.path.dirname(self.path),
-        ], stdout=subprocess.PIPE)
+        proc = subprocess.run(
+            ["git", "log", "-n", "1", "--pretty=format:%h", "--", os.path.dirname(self.path)],
+            stdout=subprocess.PIPE,
+        )
         out = proc.stdout.decode().strip()
         if out:
             return out
@@ -344,8 +345,15 @@ class Challenge:
 
 
 class Deploy:
-    def __init__(self, docker: bool = False, env: List[str] = None, ports: List["Port"] = None):
+    def __init__(
+        self,
+        docker: bool = False,
+        replicas: int = 1,
+        env: List[str] = None,
+        ports: List["Port"] = None,
+    ):
         self.docker = docker
+        self.replicas = replicas
         self.env = env if env else []
         self.ports = ports if ports else []
 
@@ -353,6 +361,7 @@ class Deploy:
     def _load_dict(data: Dict[str, Any]) -> "Deploy":
         return Deploy(
             docker=data.get("docker", False),
+            replicas=data.get("replicas", 1),
             env=data.get("env", []),
             ports=[Port._load_dict(port) for port in data.get("ports", [])],
         )
@@ -395,9 +404,7 @@ class CTFd:
         self.base = url
         self.session = requests.Session()
 
-        self.session.headers.update(
-            {"Authorization": f"Token {token}",}
-        )
+        self.session.headers.update({"Authorization": f"Token {token}"})
 
     def list(self) -> List[Any]:
         resp = self.session.get(f"{self.base}/api/v1/challenges?view=admin", json={})
@@ -424,7 +431,9 @@ class CTFd:
         return challenge_id
 
     def requirements(
-        self, challenge: Challenge, challenges: Dict[str, Challenge],
+        self,
+        challenge: Challenge,
+        challenges: Dict[str, Challenge],
     ):
         # determine the requirement ids
         prerequisites = []
@@ -435,7 +444,8 @@ class CTFd:
         if prerequisites:
             data = {"requirements": {"prerequisites": prerequisites}}
             resp = self.session.patch(
-                f"{self.base}/api/v1/challenges/{challenge.id}", json=data,
+                f"{self.base}/api/v1/challenges/{challenge.id}",
+                json=data,
             )
             resp.raise_for_status()
 
@@ -450,7 +460,8 @@ class CTFd:
             "description": challenge.description,
         }
         resp = self.session.patch(
-            f"{self.base}/api/v1/challenges/{challenge_id}", json=data,
+            f"{self.base}/api/v1/challenges/{challenge_id}",
+            json=data,
         )
         resp.raise_for_status()
         resp_data = resp.json()
@@ -501,7 +512,9 @@ class CTFd:
                 files = {"file": (filename, open(fullfilename, "rb"))}
 
                 resp = self.session.post(
-                    f"{self.base}/api/v1/files", data=data, files=files,
+                    f"{self.base}/api/v1/files",
+                    data=data,
+                    files=files,
                 )
                 resp.raise_for_status()
 
