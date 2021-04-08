@@ -17,7 +17,7 @@ services:
   ctfd:
     image: ctfd/ctfd:latest
     user: root
-    restart: always
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
@@ -40,7 +40,7 @@ services:
 
   db:
     image: mariadb:10.4.12
-    restart: always
+    restart: unless-stopped
     command: [mysqld, --wait_timeout=28800]
     environment:
       - MYSQL_ROOT_PASSWORD=ctfd
@@ -54,7 +54,7 @@ services:
 
   cache:
     image: redis:4
-    restart: always
+    restart: unless-stopped
     networks:
       internal:
 

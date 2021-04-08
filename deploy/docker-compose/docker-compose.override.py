@@ -37,7 +37,7 @@ def generate_service(challenge):
 
     result = {
         "image": image_name,
-        "restart": "always",
+        "restart": "unless-stopped",
     }
     if challenge.deploy.env:
         result["environment"] = {key: f"${key}" for key in challenge.deploy.env}
