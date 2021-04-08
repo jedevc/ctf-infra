@@ -1,6 +1,19 @@
 version: "3"
 
 services:
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=wtctf.afnom.net
+    command: "caddy reverse-proxy --from ${DOMAIN:-localhost} --to ctfd:8000"
+    volumes:
+      - .data/caddy_data:/data
+      - .data/caddy_config:/config
+
   ctfd:
     image: ctfd/ctfd:latest
     user: root
@@ -24,15 +37,6 @@ services:
     networks:
       default:
       internal:
-
-  nginx:
-    image: nginx:1.17
-    volumes:
-      - ./conf/http.conf:/etc/nginx/nginx.conf
-    ports:
-      - 80:80
-    depends_on:
-      - ctfd
 
   db:
     image: mariadb:10.4.12
