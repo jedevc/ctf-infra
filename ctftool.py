@@ -161,6 +161,9 @@ def validate_challenges(args):
                         "challenge flag invalid regex: ends with '/' but does not start with '/'"
                     )
 
+            if challenge.state not in ("visible", "hidden"):
+                fail("challenge state must be either 'visible' or 'hidden'")
+
         if failed:
             print()
         else:
@@ -263,6 +266,7 @@ class Challenge:
         generate: Dict[str, str] = None,
         requirements: List[str] = None,
         deploy: "Deploy" = None,
+        state: str = "visible",
     ):
         self.name = name
         self.display = display
@@ -276,6 +280,7 @@ class Challenge:
         self.generate = generate or {}
         self.requirements = requirements or []
         self.deploy = deploy
+        self.state = state
 
         self.error: Optional[Exception] = None
 
@@ -341,6 +346,7 @@ class Challenge:
             generate=data.get("generate", {}),
             requirements=data.get("requirements", []),
             deploy=Deploy._load_dict(data.get("deploy", {})),
+            state=data.get("state", "visible"),
         )
 
 
@@ -416,7 +422,7 @@ class CTFd:
         data = {
             "name": challenge.display,
             "category": challenge.category,
-            "state": "visible",
+            "state": challenge.state,
             "value": challenge.points,
             "type": "standard",
             "description": challenge.description,
@@ -454,7 +460,7 @@ class CTFd:
         data = {
             "name": challenge.display,
             "category": challenge.category,
-            "state": "visible",
+            "state": challenge.state,
             "value": challenge.points,
             "type": "standard",
             "description": challenge.description,
